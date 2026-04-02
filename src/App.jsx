@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
+import Navbar from './components/Navbar';
+import MovieCard from './components/MovieCard';
 
 const API_KEY = '0f9ff00a0afc741ccd05fcad09b52563';
 const IMG_PATH = 'https://image.tmdb.org/t/p/w1280';
@@ -26,14 +28,7 @@ function App() {
 
   return (
     <div className="App">
-      <header id="navbar">
-        <h1 className="logo" onClick={() => setCategory('home')}>RANGDHANU</h1>
-        <nav className="main-nav">
-          <span className={category === 'home' ? 'active' : ''} onClick={() => setCategory('home')}>Home</span>
-          <span className={category === 'tv' ? 'active' : ''} onClick={() => setCategory('tv')}>TV Shows</span>
-          <span className={category === 'movies' ? 'active' : ''} onClick={() => setCategory('movies')}>Movies</span>
-        </nav>
-      </header>
+      <Navbar category={category} setCategory={setCategory} />
 
       {heroMovie && (
         <section className="hero-section" style={{ backgroundImage: `linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.8)), url(${IMG_PATH + heroMovie.backdrop_path})` }}>
@@ -46,12 +41,10 @@ function App() {
       )}
 
       <main className="row-container">
-        <h2>Trending Now</h2>
+        <h2>{category.toUpperCase()} Trending</h2>
         <div className="movie-row">
           {movies.map(movie => (
-            <div key={movie.id} className="movie-card" onClick={() => setSelectedMovie(movie)}>
-              <img src={IMG_PATH + movie.poster_path} alt={movie.title} />
-            </div>
+            <MovieCard key={movie.id} movie={movie} setSelectedMovie={setSelectedMovie} />
           ))}
         </div>
       </main>
