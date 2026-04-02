@@ -1,0 +1,29 @@
+:root {
+    --apple-red: #ff3b30;
+    --bg-dark: #000000;
+    --text-main: #ffffff;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Inter', sans-serif; background: var(--bg-dark); color: var(--text-main); overflow-x: hidden; }
+
+header { position: fixed; top: 0; width: 100%; z-index: 1000; padding: 15px 5%; background: rgba(0,0,0,0.4); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 0.5px solid rgba(255,255,255,0.1); }
+.nav-content { display: flex; justify-content: space-between; align-items: center; }
+.logo { color: var(--apple-red); font-weight: 800; font-size: 24px; cursor: pointer; }
+
+.main-nav span { margin: 0 15px; font-size: 15px; color: rgba(255,255,255,0.6); cursor: pointer; transition: 0.3s; }
+.main-nav span.active { color: #fff; font-weight: 700; }
+
+.hero-section { height: 75vh; background-size: cover; background-position: center; display: flex; align-items: flex-end; padding: 0 5% 50px; position: relative; }
+.hero-section::before { content: ''; position: absolute; inset: 0; background: linear-gradient(to top, #000, transparent); }
+
+.row-container { margin: 40px 0 0 5%; }
+.movie-row { display: flex; gap: 20px; overflow-x: auto; padding: 15px 0; }
+.movie-row::-webkit-scrollbar { display: none; }
+.movie-card { min-width: 180px; border-radius: 12px; cursor: pointer; transition: 0.4s; }
+.movie-card:hover { transform: scale(1.1); }
+.movie-card img { width: 100%; border-radius: 12px; }
+
+/* Modal Glassmorphism */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 2000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px); }
+.modal-content { width: 90%; max-width: 800px; background: rgba(30,30,30,0.8); border-radius: 20px; padding: 30px; display: grid; grid-template-columns: 1fr 1.5fr; gap: 20px; border: 1px solid rgba(255,255,255,0.1); }
