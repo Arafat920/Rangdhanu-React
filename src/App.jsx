@@ -17,7 +17,6 @@ function App() {
   const [searchResults, setSearchResults] = useState([]);
   const [watchlist, setWatchlist] = useState(JSON.parse(localStorage.getItem('appleWatchlist')) || []);
   const [currentStreamLink, setCurrentStreamLink] = useState(null);
-  const [isLoading, setIsLoading] = useState(false); // লোডিং ইন্ডিকেটর
 
   const apiPaths = {
     home: [
@@ -34,58 +33,39 @@ function App() {
   }, [category]);
 
   const loadPageData = async () => {
-    try {
-      const activeSections = apiPaths[category] || apiPaths.home;
-      const loaded = await Promise.all(activeSections.map(async (sec) => {
-        const res = await fetch(sec.url);
-        const data = await res.json();
-        return { ...sec, movies: data.results };
-      }));
-      setSections(loaded);
-      if (loaded[0] && loaded[0].movies.length > 0) setHeroMovie(loaded[0].movies[0]);
-    } catch (err) {
-      console.error("Error loading page data:", err);
-    }
+    const activeSections = apiPaths[category] || apiPaths.home;
+    const loaded = await Promise.all(activeSections.map(async (sec) => {
+      const res = await fetch(sec.url);
+      const data = await res.json();
+      return { ...sec, movies: data.results };
+    }));
+    setSections(loaded);
+    if (loaded[0] && loaded[0].movies.length > 0) setHeroMovie(loaded[0].movies[0]);
   };
 
-  // পপ-আপ ওপেন করার উন্নত ও দ্রুত ফাংশন
+  // পপ-আপ ওপেন করার ফাংশন (অবিলম্বে পপ-আপ দেখাবে)
   const openDetails = async (movie, type) => {
     if (!movie) return;
-    setIsLoading(true); // লোডিং শুরু
-    setCurrentStreamLink(null); // আগের লিঙ্ক ক্লিয়ার করা
+    
+    // ১. পপ-আপ খোলার আগে সব ক্লিন করে মুভিটি সেট করুন যাতে পপ-আপ সাথে সাথে আসে
+    setCurrentStreamLink(null);
+    setSelectedMovie(movie); 
 
     try {
-      const mType = type === 'tv' ? 'tv' : 'movie';
       const movieId = movie.id.toString();
-
-      // TMDB এবং Firebase দুটি রিকোয়েস্ট একসাথে পাঠানো (High Speed)
-      const [tmdbRes, firebaseDoc] = await Promise.all([
-        fetch(`https://api.themoviedb.org/3/${mType}/${movieId}?api_key=${API_KEY}`),
-        getDoc(doc(db, "movies", movieId))
-      ]);
-
-      const movieData = await tmdbRes.json();
-
-      if (firebaseDoc.exists()) {
-        setCurrentStreamLink(firebaseDoc.data().link);
+      // ২. Firebase থেকে লিঙ্ক আছে কি না তা ব্যাকগ্রাউন্ডে চেক করুন
+      const docSnap = await getDoc(doc(db, "movies", movieId));
+      if (docSnap.exists()) {
+        setCurrentStreamLink(docSnap.data().link);
       }
-
-      setSelectedMovie(movieData);
     } catch (error) {
-      console.error("Error opening details:", error);
-    } finally {
-      setIsLoading(false); // লোডিং শেষ
+      console.log("Firebase Error:", error);
     }
   };
 
   const handleSearch = async (query) => {
     if (!query) return;
-    if (query.toLowerCase() === 'admin920') { 
-        setCategory('admin');
-        setSearchResults([]); 
-        return;
-    }
-
+    if (query.toLowerCase() === 'admin920') { setCategory('admin'); return; }
     const res = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=${API_KEY}&query=${query}`);
     const data = await res.json();
     setSearchResults(data.results);
@@ -96,10 +76,7 @@ function App() {
     let list = [...watchlist];
     const idx = list.findIndex(m => m.id === movie.id);
     if (idx > -1) list.splice(idx, 1);
-    else {
-      movie.mType = movie.title ? 'movie' : 'tv';
-      list.push(movie);
-    }
+    else list.push(movie);
     setWatchlist(list);
     localStorage.setItem('appleWatchlist', JSON.stringify(list));
   };
@@ -122,8 +99,6 @@ function App() {
     <div className="App">
       <Navbar category={category} setCategory={setCategory} handleSearch={handleSearch} />
 
-      {isLoading && <div className="loading-spinner">Loading...</div>}
-
       {category === 'admin' ? (
         <Admin />
       ) : (
@@ -141,7 +116,7 @@ function App() {
           <main className="main-content">
             {category === 'search' ? (
               <div className="search-overlay">
-                <button className="close-search" onClick={() => setCategory('home')}>✕</button>
+                <button className="close-search" onClick={() => setCategory('home')}>✕ Close</button>
                 <div className="search-grid">
                   {searchResults.map(m => m.poster_path && <MovieCard key={m.id} movie={m} setSelectedMovie={(m) => openDetails(m, m.media_type)} />)}
                 </div>
@@ -150,7 +125,7 @@ function App() {
               <div className="row-container">
                 <h2>My Watchlist</h2>
                 <div className="search-grid">
-                  {watchlist.map(m => <MovieCard key={m.id} movie={m} setSelectedMovie={(m) => openDetails(m, m.mType)} />)}
+                  {watchlist.map(m => <MovieCard key={m.id} movie={m} setSelectedMovie={(m) => openDetails(m, m.media_type)} />)}
                 </div>
               </div>
             ) : (
@@ -191,7 +166,7 @@ function App() {
                   )}
 
                   <button className="btn-apple btn-border" onClick={() => toggleWatchlist(selectedMovie)}>
-                    {watchlist.some(m => m.id === selectedMovie.id) ? '✕ Remove List' : '+ My List'}
+                    {watchlist.some(m => m.id === selectedMovie.id) ? '✕ Remove List' : '+ Add List'}
                   </button>
                 </div>
               </div>
