@@ -40,33 +40,24 @@ function App() {
       return { ...sec, movies: data.results };
     }));
     setSections(loaded);
-    if (loaded[0] && loaded[0].movies.length > 0) setHeroMovie(loaded[0].movies[0]);
+    if (loaded[0]) setHeroMovie(loaded[0].movies[0]);
   };
 
-  // পপ-আপ ওপেন করার ফাংশন (অবিলম্বে পপ-আপ দেখাবে)
-  const openDetails = async (movie, type) => {
+  const openDetails = async (movie, type = 'movie') => {
     if (!movie) return;
-    
-    // ১. পপ-আপ খোলার আগে সব ক্লিন করে মুভিটি সেট করুন যাতে পপ-আপ সাথে সাথে আসে
     setCurrentStreamLink(null);
     setSelectedMovie(movie); 
 
     try {
-      const movieId = movie.id.toString();
-      // ২. Firebase থেকে লিঙ্ক আছে কি না তা ব্যাকগ্রাউন্ডে চেক করুন
-      const docSnap = await getDoc(doc(db, "movies", movieId));
-      if (docSnap.exists()) {
-        setCurrentStreamLink(docSnap.data().link);
-      }
-    } catch (error) {
-      console.log("Firebase Error:", error);
-    }
+      const docSnap = await getDoc(doc(db, "movies", movie.id.toString()));
+      if (docSnap.exists()) setCurrentStreamLink(docSnap.data().link);
+    } catch (e) { console.log(e); }
   };
 
-  const handleSearch = async (query) => {
-    if (!query) return;
-    if (query.toLowerCase() === 'admin920') { setCategory('admin'); return; }
-    const res = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=${API_KEY}&query=${query}`);
+  const handleSearch = async (q) => {
+    if (!q) return;
+    if (q.toLowerCase() === 'admin920') { setCategory('admin'); return; }
+    const res = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=${API_KEY}&query=${q}`);
     const data = await res.json();
     setSearchResults(data.results);
     setCategory('search');
@@ -87,11 +78,10 @@ function App() {
   };
 
   const getTrailer = async (id, type) => {
-    const mType = type === 'tv' ? 'tv' : 'movie';
-    const res = await fetch(`https://api.themoviedb.org/3/${mType}/${id}/videos?api_key=${API_KEY}`);
+    const res = await fetch(`https://api.themoviedb.org/3/${type === 'tv' ? 'tv' : 'movie'}/${id}/videos?api_key=${API_KEY}`);
     const data = await res.json();
-    const trailer = data.results.find(v => v.type === 'Trailer');
-    if (trailer) window.open(`https://www.youtube.com/watch?v=${trailer.key}`);
+    const tr = data.results.find(v => v.type === 'Trailer');
+    if (tr) window.open(`https://www.youtube.com/watch?v=${tr.key}`);
     else alert("Trailer not found!");
   };
 
@@ -99,16 +89,14 @@ function App() {
     <div className="App">
       <Navbar category={category} setCategory={setCategory} handleSearch={handleSearch} />
 
-      {category === 'admin' ? (
-        <Admin />
-      ) : (
+      {category === 'admin' ? ( <Admin /> ) : (
         <>
           {category !== 'search' && category !== 'mylist' && heroMovie && (
             <section className="hero-section" style={{ backgroundImage: `linear-gradient(rgba(0,0,0,0.1), rgba(0,0,0,0.8)), url(${IMG_PATH + heroMovie.backdrop_path})` }}>
               <div className="hero-inner">
                 <h1>{heroMovie.title || heroMovie.name}</h1>
                 <p>{heroMovie.overview?.substring(0, 160)}...</p>
-                <button className="btn-apple btn-fill" onClick={() => openDetails(heroMovie, 'movie')}>View Details</button>
+                <button className="btn-apple btn-fill" onClick={() => openDetails(heroMovie, heroMovie.media_type)}>View Details</button>
               </div>
             </section>
           )}
@@ -116,27 +104,20 @@ function App() {
           <main className="main-content">
             {category === 'search' ? (
               <div className="search-overlay">
-                <button className="close-search" onClick={() => setCategory('home')}>✕ Close</button>
+                <button className="close-search" onClick={() => setCategory('home')} style={{color:'#fff', marginBottom:'20px', cursor:'pointer'}}>✕ Close Search</button>
                 <div className="search-grid">
-                  {searchResults.map(m => m.poster_path && <MovieCard key={m.id} movie={m} setSelectedMovie={(m) => openDetails(m, m.media_type)} />)}
+                  {searchResults.map(m => m.poster_path && <MovieCard key={m.id} movie={m} setSelectedMovie={() => openDetails(m, m.media_type)} />)}
                 </div>
               </div>
             ) : category === 'mylist' ? (
-              <div className="row-container">
-                <h2>My Watchlist</h2>
-                <div className="search-grid">
-                  {watchlist.map(m => <MovieCard key={m.id} movie={m} setSelectedMovie={(m) => openDetails(m, m.media_type)} />)}
-                </div>
-              </div>
+              <div className="row-container"><h2>My Watchlist</h2><div className="search-grid">{watchlist.map(m => <MovieCard key={m.id} movie={m} setSelectedMovie={() => openDetails(m, 'movie')} />)}</div></div>
             ) : (
               sections.map((sec, idx) => (
                 <div key={idx} className="row-container">
                   <h2>{sec.title}</h2>
                   <div className="row-wrapper">
                     <button className="scroll-handle left-handle" onClick={() => scrollRow(`row-${idx}`, -1)}>&#10094;</button>
-                    <div id={`row-${idx}`} className="movie-row">
-                      {sec.movies.map(m => m.poster_path && <MovieCard key={m.id} movie={m} setSelectedMovie={(m) => openDetails(m, sec.type)} />)}
-                    </div>
+                    <div id={`row-${idx}`} className="movie-row">{sec.movies.map(m => m.poster_path && <MovieCard key={m.id} movie={m} setSelectedMovie={() => openDetails(m, sec.type)} />)}</div>
                     <button className="scroll-handle right-handle" onClick={() => scrollRow(`row-${idx}`, 1)}>&#10095;</button>
                   </div>
                 </div>
@@ -148,26 +129,18 @@ function App() {
 
       {selectedMovie && (
         <div className="modal-overlay" onClick={() => setSelectedMovie(null)}>
-          <div className="modal-content glass-card" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <span className="close-modal" onClick={() => setSelectedMovie(null)}>✕</span>
             <div className="modal-body">
               <img src={IMG_PATH + selectedMovie.poster_path} alt="poster" style={{width:'100%', borderRadius:'15px'}} />
               <div className="modal-info">
                 <h2>{selectedMovie.title || selectedMovie.name}</h2>
-                <p style={{color:'#aaa'}}>⭐ {selectedMovie.vote_average?.toFixed(1)} | {selectedMovie.release_date || selectedMovie.first_air_date}</p>
-                <p style={{margin:'20px 0', color:'#ddd', lineHeight:'1.6'}}>{selectedMovie.overview}</p>
+                <p style={{color:'#aaa', margin:'10px 0'}}>⭐ {selectedMovie.vote_average?.toFixed(1)} | {selectedMovie.release_date || selectedMovie.first_air_date}</p>
+                <p style={{fontSize:'14px', lineHeight:'1.6', color:'#ddd'}}>{selectedMovie.overview}</p>
                 <div className="modal-btns">
-                  <button className="btn-apple btn-fill" onClick={() => getTrailer(selectedMovie.id, selectedMovie.title ? 'movie' : 'tv')}>▶ Watch Trailer</button>
-                  
-                  {currentStreamLink && (
-                    <button className="btn-apple btn-fill" style={{background: '#00d41d', color: '#fff', marginLeft: '10px'}} onClick={() => window.open(currentStreamLink, '_blank')}>
-                      ▶ Watch Now
-                    </button>
-                  )}
-
-                  <button className="btn-apple btn-border" onClick={() => toggleWatchlist(selectedMovie)}>
-                    {watchlist.some(m => m.id === selectedMovie.id) ? '✕ Remove List' : '+ Add List'}
-                  </button>
+                  <button className="btn-apple btn-fill" onClick={() => getTrailer(selectedMovie.id, selectedMovie.title ? 'movie' : 'tv')}>▶ Trailer</button>
+                  {currentStreamLink && <button className="btn-apple btn-fill" style={{background:'#00d41d', color:'#fff', marginLeft:'10px'}} onClick={() => window.open(currentStreamLink)}>▶ Watch Now</button>}
+                  <button className="btn-apple btn-border" onClick={() => toggleWatchlist(selectedMovie)}>{watchlist.some(m => m.id === selectedMovie.id) ? '✕ Remove' : '+ List'}</button>
                 </div>
               </div>
             </div>
