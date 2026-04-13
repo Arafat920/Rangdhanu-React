@@ -25,42 +25,18 @@ function App() {
   };
 
   useEffect(() => {
-    if (category !== 'mylist') loadPageData();
+    if (category !== 'mylist' && category !== 'search') loadPageData();
   }, [category]);
 
   const loadPageData = async () => {
-    const activeSections = apiPaths[category];
-    const loadedSections = await Promise.all(activeSections.map(async (sec) => {
+    const activeSections = apiPaths[category] || apiPaths.home;
+    const loaded = await Promise.all(activeSections.map(async (sec) => {
       const res = await fetch(sec.url);
       const data = await res.json();
       return { ...sec, movies: data.results };
     }));
-    setSections(loadedSections);
-    if (loadedSections[0]) setHeroMovie(loadedSections[0].movies[0]);
-  };
-
-  const scrollRow = (id, direction) => {
-    const el = document.getElementById(id);
-    const scrollAmount = el.clientWidth * 0.8;
-    el.scrollBy({ left: direction * scrollAmount, behavior: 'smooth' });
-  };
-
-  const toggleWatchlist = (movie) => {
-    let updatedList = [...watchlist];
-    const idx = updatedList.findIndex(m => m.id === movie.id);
-    if (idx > -1) updatedList.splice(idx, 1);
-    else updatedList.push(movie);
-    setWatchlist(updatedList);
-    localStorage.setItem('appleWatchlist', JSON.stringify(updatedList));
-  };
-
-  const startVoiceSearch = () => {
-    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-    recognition.onresult = (event) => {
-      const query = event.results[0][0].transcript;
-      handleSearch(query);
-    };
-    recognition.start();
+    setSections(loaded);
+    if (loaded[0]) setHeroMovie(loaded[0].movies[0]);
   };
 
   const handleSearch = async (query) => {
@@ -71,8 +47,23 @@ function App() {
     setCategory('search');
   };
 
+  const toggleWatchlist = (movie) => {
+    let list = [...watchlist];
+    const idx = list.findIndex(m => m.id === movie.id);
+    if (idx > -1) list.splice(idx, 1);
+    else list.push(movie);
+    setWatchlist(list);
+    localStorage.setItem('appleWatchlist', JSON.stringify(list));
+  };
+
+  const scrollRow = (id, dir) => {
+    const el = document.getElementById(id);
+    el.scrollBy({ left: dir * el.clientWidth * 0.8, behavior: 'smooth' });
+  };
+
   const getTrailer = async (id, type) => {
-    const res = await fetch(`https://api.themoviedb.org/3/${type === 'tv' ? 'tv' : 'movie'}/${id}/videos?api_key=${API_KEY}`);
+    const mType = type === 'tv' ? 'tv' : 'movie';
+    const res = await fetch(`https://api.themoviedb.org/3/${mType}/${id}/videos?api_key=${API_KEY}`);
     const data = await res.json();
     const trailer = data.results.find(v => v.type === 'Trailer');
     if (trailer) window.open(`https://www.youtube.com/watch?v=${trailer.key}`);
@@ -81,14 +72,14 @@ function App() {
 
   return (
     <div className="App">
-      <Navbar category={category} setCategory={setCategory} startVoiceSearch={startVoiceSearch} handleSearch={handleSearch} />
+      <Navbar category={category} setCategory={setCategory} handleSearch={handleSearch} />
 
       {category !== 'search' && category !== 'mylist' && heroMovie && (
         <section className="hero-section" style={{ backgroundImage: `linear-gradient(rgba(0,0,0,0.1), rgba(0,0,0,0.8)), url(${IMG_PATH + heroMovie.backdrop_path})` }}>
           <div className="hero-inner">
             <h1>{heroMovie.title || heroMovie.name}</h1>
-            <p>{heroMovie.overview.substring(0, 160)}...</p>
-            <button className="btn-apple btn-fill" onClick={() => setSelectedMovie(heroMovie)}>View Info</button>
+            <p>{heroMovie.overview?.substring(0, 160)}...</p>
+            <button className="btn-apple btn-fill" onClick={() => setSelectedMovie(heroMovie)}>View Details</button>
           </div>
         </section>
       )}
@@ -96,16 +87,16 @@ function App() {
       <main className="main-content">
         {category === 'search' ? (
           <div className="search-overlay">
-            <button className="close-search" onClick={() => setCategory('home')}>✕ Close Search</button>
+            <button className="close-search" onClick={() => setCategory('home')}>✕</button>
             <div className="search-grid">
-              {searchResults.map(movie => movie.poster_path && <MovieCard key={movie.id} movie={movie} setSelectedMovie={setSelectedMovie} />)}
+              {searchResults.map(m => m.poster_path && <MovieCard key={m.id} movie={m} setSelectedMovie={setSelectedMovie} />)}
             </div>
           </div>
         ) : category === 'mylist' ? (
           <div className="row-container">
             <h2>My Watchlist</h2>
             <div className="search-grid">
-              {watchlist.map(movie => <MovieCard key={movie.id} movie={movie} setSelectedMovie={setSelectedMovie} />)}
+              {watchlist.map(m => <MovieCard key={m.id} movie={m} setSelectedMovie={setSelectedMovie} />)}
             </div>
           </div>
         ) : (
@@ -115,7 +106,7 @@ function App() {
               <div className="row-wrapper">
                 <button className="scroll-handle left-handle" onClick={() => scrollRow(`row-${idx}`, -1)}>&#10094;</button>
                 <div id={`row-${idx}`} className="movie-row">
-                  {sec.movies.map(movie => movie.poster_path && <MovieCard key={movie.id} movie={movie} setSelectedMovie={setSelectedMovie} />)}
+                  {sec.movies.map(m => m.poster_path && <MovieCard key={m.id} movie={m} setSelectedMovie={setSelectedMovie} />)}
                 </div>
                 <button className="scroll-handle right-handle" onClick={() => scrollRow(`row-${idx}`, 1)}>&#10095;</button>
               </div>
@@ -126,20 +117,18 @@ function App() {
 
       {selectedMovie && (
         <div className="modal-overlay" onClick={() => setSelectedMovie(null)}>
-          <div className="modal-content glass-card" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <span className="close-modal" onClick={() => setSelectedMovie(null)}>✕</span>
             <div className="modal-body">
               <img src={IMG_PATH + selectedMovie.poster_path} alt="poster" style={{width:'100%', borderRadius:'15px'}} />
               <div className="modal-info">
                 <h2>{selectedMovie.title || selectedMovie.name}</h2>
-                <p>⭐ {selectedMovie.vote_average?.toFixed(1)} | {selectedMovie.release_date || selectedMovie.first_air_date}</p>
-                <p className="modal-overview">{selectedMovie.overview}</p>
-                <div className="modal-btns">
-                  <button className="btn-apple btn-fill" onClick={() => getTrailer(selectedMovie.id, selectedMovie.media_type)}>▶ Watch Trailer</button>
-                  <button className="btn-apple btn-border" onClick={() => toggleWatchlist(selectedMovie)}>
-                    {watchlist.some(m => m.id === selectedMovie.id) ? '✕ Remove List' : '+ Add List'}
-                  </button>
-                </div>
+                <p style={{color:'#aaa'}}>⭐ {selectedMovie.vote_average?.toFixed(1)} | {selectedMovie.release_date || selectedMovie.first_air_date}</p>
+                <p style={{margin:'20px 0', color:'#ddd', lineHeight:'1.6'}}>{selectedMovie.overview}</p>
+                <button className="btn-apple btn-fill" onClick={() => getTrailer(selectedMovie.id, selectedMovie.media_type || 'movie')}>▶ Watch Trailer</button>
+                <button className="btn-apple btn-border" onClick={() => toggleWatchlist(selectedMovie)}>
+                  {watchlist.some(m => m.id === selectedMovie.id) ? '✕ Remove List' : '+ My List'}
+                </button>
               </div>
             </div>
           </div>
