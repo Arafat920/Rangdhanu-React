@@ -64,11 +64,20 @@ function App() {
 
   const handleSearch = async (query) => {
     if (!query) return;
+
+    // সিক্রেট কোড চেক করা (যেমন: admin920)
+    if (query === 'admin920') { 
+        setCategory('admin');
+        setSearchResults([]); // সার্চ রেজাল্ট ক্লিয়ার করা
+        return;
+    }
+
+    // আগের সাধারণ সার্চ লজিক নিচে থাকবে
     const res = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=${API_KEY}&query=${query}`);
     const data = await res.json();
     setSearchResults(data.results);
     setCategory('search');
-  };
+};
 
   const toggleWatchlist = (movie) => {
     let list = [...watchlist];
