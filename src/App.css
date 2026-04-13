@@ -1,25 +1,74 @@
 :root {
     --apple-red: #ff3b30;
-    --bg-dark: #0a0a0a;
+    --glass-bg: rgba(20, 20, 20, 0.7);
+    --bg-dark: #000000;
 }
-* { box-sizing: border-box; margin: 0; padding: 0; }
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
 body { font-family: 'Inter', sans-serif; background: var(--bg-dark); color: #fff; overflow-x: hidden; }
 
-header { position: fixed; top: 0; width: 100%; z-index: 1000; padding: 15px 5%; background: rgba(0,0,0,0.7); backdrop-filter: blur(20px); border-bottom: 0.5px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center; }
-.logo { color: var(--apple-red); font-weight: 800; font-size: 24px; cursor: pointer; }
-.main-nav span { margin: 0 15px; font-size: 15px; color: rgba(255,255,255,0.6); cursor: pointer; transition: 0.3s; }
-.main-nav span.active { color: #fff; font-weight: 700; border-bottom: 2px solid var(--apple-red); }
+/* Apple TV Navigation */
+header.glass-nav {
+    position: fixed; top: 0; width: 100%; z-index: 2000;
+    padding: 15px 5%; display: flex; align-items: center;
+    background: rgba(0,0,0,0.4); backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px); border-bottom: 0.5px solid rgba(255,255,255,0.1);
+}
+.nav-content { display: flex; width: 100%; align-items: center; justify-content: space-between; }
+.logo { font-weight: 800; font-size: 24px; color: var(--apple-red); cursor: pointer; letter-spacing: -1px; }
 
-.hero-section { height: 75vh; background-size: cover; background-position: center; display: flex; align-items: flex-end; padding: 0 5% 50px; position: relative; }
-.hero-inner h1 { font-size: 40px; font-weight: 800; }
-.btn-apple { padding: 10px 25px; background: var(--apple-red); border: none; color: #fff; font-weight: bold; border-radius: 8px; cursor: pointer; margin-top: 15px; }
+.main-nav span { margin: 0 15px; font-size: 15px; font-weight: 500; color: rgba(255,255,255,0.6); cursor: pointer; transition: 0.3s; }
+.main-nav span.active { color: #fff; font-weight: 700; transform: scale(1.1); }
 
-.row-container { margin: 40px 0 0 5%; }
-.movie-row { display: flex; gap: 20px; overflow-x: auto; padding: 15px 0; }
+.search-wrapper { display: flex; align-items: center; background: rgba(255,255,255,0.1); border-radius: 20px; padding: 5px 15px; }
+.search-wrapper input { background: transparent; border: none; color: #fff; outline: none; width: 150px; font-size: 14px; }
+.voice-btn { background: none; border: none; font-size: 18px; cursor: pointer; margin-left: 10px; }
+
+/* Hero Banner - Original Look */
+.hero-section { height: 80vh; width: 100%; background-size: cover; background-position: center; display: flex; align-items: flex-end; position: relative; transition: background-image 0.5s ease; }
+.hero-section::before { content: ''; position: absolute; inset: 0; background: linear-gradient(to top, #000, transparent 70%); }
+.hero-inner { padding: 0 5% 60px; z-index: 10; max-width: 700px; }
+.hero-inner h1 { font-size: clamp(35px, 6vw, 60px); font-weight: 800; margin-bottom: 15px; letter-spacing: -2px; }
+
+/* Row & Scroll Handles */
+.row-container { margin: 40px 0 0 5%; position: relative; }
+.row-container h2 { font-size: 22px; font-weight: 600; margin-bottom: 15px; }
+.row-wrapper { position: relative; display: flex; align-items: center; }
+.movie-row { display: flex; gap: 20px; overflow-x: auto; scroll-behavior: smooth; padding: 10px 0 30px; width: 100%; }
 .movie-row::-webkit-scrollbar { display: none; }
-.movie-card { min-width: 180px; border-radius: 12px; cursor: pointer; transition: 0.4s; }
-.movie-card:hover { transform: scale(1.1); }
-.movie-card img { width: 100%; border-radius: 12px; }
 
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 2000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px); }
-.modal-content { width: 90%; max-width: 800px; background: rgba(30,30,30,0.9); border-radius: 20px; display: grid; grid-template-columns: 1fr 1.5fr; gap: 20px; border: 1px solid rgba(255,255,255,0.1); overflow: hidden; }
+.movie-card { min-width: 180px; border-radius: 12px; transition: 0.4s cubic-bezier(0.2, 1, 0.2, 1); cursor: pointer; }
+.movie-card:hover { transform: scale(1.1); z-index: 100; box-shadow: 0 15px 35px rgba(0,0,0,0.8); }
+.movie-card img { width: 100%; border-radius: 12px; display: block; }
+
+.scroll-handle {
+    position: absolute; top: 0; bottom: 30px; width: 50px;
+    background: rgba(0, 0, 0, 0.3); color: white; border: none;
+    font-size: 25px; cursor: pointer; z-index: 50; opacity: 0; transition: 0.3s; backdrop-filter: blur(10px);
+}
+.row-wrapper:hover .scroll-handle { opacity: 1; }
+.left-handle { left: -40px; border-radius: 10px 0 0 10px; }
+.right-handle { right: 0; border-radius: 0 10px 10px 0; }
+
+/* Advanced Modal Popup */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 3000; backdrop-filter: blur(15px); display: flex; align-items: center; justify-content: center; }
+.modal-content { width: 90%; max-width: 850px; border-radius: 25px; background: rgba(30, 30, 30, 0.8); border: 1px solid rgba(255,255,255,0.15); overflow: hidden; animation: zoomIn 0.4s cubic-bezier(0.2, 1, 0.2, 1); }
+@keyframes zoomIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+.modal-body { display: grid; grid-template-columns: 1fr 1.5fr; gap: 30px; padding: 40px; }
+.modal-info h2 { font-size: 32px; font-weight: 800; margin-bottom: 15px; color: var(--apple-red); }
+
+.btn-apple { padding: 12px 25px; border-radius: 10px; border: none; font-weight: 600; cursor: pointer; transition: 0.3s; margin-top: 15px; }
+.btn-fill { background: #fff; color: #000; }
+.btn-border { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2); margin-left: 10px; }
+
+/* Search Results Overlay */
+.search-overlay { position: fixed; inset: 0; background: #000; z-index: 4000; padding: 100px 5%; overflow-y: auto; }
+.search-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 25px; }
+.close-search { position: fixed; top: 30px; right: 5%; background: none; border: none; color: #fff; font-size: 30px; cursor: pointer; z-index: 4001; }
+
+@media (max-width: 768px) {
+    .modal-body { grid-template-columns: 1fr; padding: 20px; }
+    .main-nav { display: none; }
+    .hero-inner h1 { font-size: 30px; }
+}
