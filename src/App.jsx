@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 import Navbar from './components/Navbar';
 import MovieCard from './components/MovieCard';
-import Admin from './components/Admin'; // Admin ফাইলটি ইমপোর্ট করলাম
-import { db } from './firebase'; // Firebase ডাটাবেস ইমপোর্ট করলাম
+import Admin from './components/Admin'; 
+import { db } from './firebase'; 
 import { doc, getDoc } from 'firebase/firestore';
 
 const API_KEY = '0f9ff00a0afc741ccd05fcad09b52563';
@@ -16,10 +16,8 @@ function App() {
   const [selectedMovie, setSelectedMovie] = useState(null);
   const [searchResults, setSearchResults] = useState([]);
   const [watchlist, setWatchlist] = useState(JSON.parse(localStorage.getItem('appleWatchlist')) || []);
-  
-  // নতুন স্টেট: মুভি লিঙ্কের জন্য
   const [currentStreamLink, setCurrentStreamLink] = useState(null);
-  const [showAdmin, setShowAdmin] = useState(false); // অ্যাডমিন পেজ দেখানোর জন্য
+  const [isLoading, setIsLoading] = useState(false); // লোডিং ইন্ডিকেটর
 
   const apiPaths = {
     home: [
@@ -36,61 +34,79 @@ function App() {
   }, [category]);
 
   const loadPageData = async () => {
-    const activeSections = apiPaths[category] || apiPaths.home;
-    const loaded = await Promise.all(activeSections.map(async (sec) => {
-      const res = await fetch(sec.url);
-      const data = await res.json();
-      return { ...sec, movies: data.results };
-    }));
-    setSections(loaded);
-    if (loaded[0]) setHeroMovie(loaded[0].movies[0]);
+    try {
+      const activeSections = apiPaths[category] || apiPaths.home;
+      const loaded = await Promise.all(activeSections.map(async (sec) => {
+        const res = await fetch(sec.url);
+        const data = await res.json();
+        return { ...sec, movies: data.results };
+      }));
+      setSections(loaded);
+      if (loaded[0] && loaded[0].movies.length > 0) setHeroMovie(loaded[0].movies[0]);
+    } catch (err) {
+      console.error("Error loading page data:", err);
+    }
   };
 
-  // মুভি ডিটেইলস ওপেন করার সময় Firebase থেকে লিঙ্ক চেক করবে
+  // পপ-আপ ওপেন করার উন্নত ও দ্রুত ফাংশন
   const openDetails = async (movie, type) => {
-    const mType = type === 'tv' ? 'tv' : 'movie';
-    setSelectedMovie(movie);
-    
-    // Firebase থেকে লিঙ্ক খোঁজা
-    const docRef = doc(db, "movies", movie.id.toString());
-    const docSnap = await getDoc(docRef);
-    
-    if (docSnap.exists()) {
-      setCurrentStreamLink(docSnap.data().link);
-    } else {
-      setCurrentStreamLink(null);
+    if (!movie) return;
+    setIsLoading(true); // লোডিং শুরু
+    setCurrentStreamLink(null); // আগের লিঙ্ক ক্লিয়ার করা
+
+    try {
+      const mType = type === 'tv' ? 'tv' : 'movie';
+      const movieId = movie.id.toString();
+
+      // TMDB এবং Firebase দুটি রিকোয়েস্ট একসাথে পাঠানো (High Speed)
+      const [tmdbRes, firebaseDoc] = await Promise.all([
+        fetch(`https://api.themoviedb.org/3/${mType}/${movieId}?api_key=${API_KEY}`),
+        getDoc(doc(db, "movies", movieId))
+      ]);
+
+      const movieData = await tmdbRes.json();
+
+      if (firebaseDoc.exists()) {
+        setCurrentStreamLink(firebaseDoc.data().link);
+      }
+
+      setSelectedMovie(movieData);
+    } catch (error) {
+      console.error("Error opening details:", error);
+    } finally {
+      setIsLoading(false); // লোডিং শেষ
     }
   };
 
   const handleSearch = async (query) => {
     if (!query) return;
-
-    // সিক্রেট কোড চেক করা (যেমন: admin920)
-    if (query === 'admin920') { 
+    if (query.toLowerCase() === 'admin920') { 
         setCategory('admin');
-        setSearchResults([]); // সার্চ রেজাল্ট ক্লিয়ার করা
+        setSearchResults([]); 
         return;
     }
 
-    // আগের সাধারণ সার্চ লজিক নিচে থাকবে
     const res = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=${API_KEY}&query=${query}`);
     const data = await res.json();
     setSearchResults(data.results);
     setCategory('search');
-};
+  };
 
   const toggleWatchlist = (movie) => {
     let list = [...watchlist];
     const idx = list.findIndex(m => m.id === movie.id);
     if (idx > -1) list.splice(idx, 1);
-    else list.push(movie);
+    else {
+      movie.mType = movie.title ? 'movie' : 'tv';
+      list.push(movie);
+    }
     setWatchlist(list);
     localStorage.setItem('appleWatchlist', JSON.stringify(list));
   };
 
   const scrollRow = (id, dir) => {
     const el = document.getElementById(id);
-    el.scrollBy({ left: dir * el.clientWidth * 0.8, behavior: 'smooth' });
+    if (el) el.scrollBy({ left: dir * el.clientWidth * 0.8, behavior: 'smooth' });
   };
 
   const getTrailer = async (id, type) => {
@@ -102,19 +118,11 @@ function App() {
     else alert("Trailer not found!");
   };
 
-  // অ্যাডমিন পেজ টগল করার জন্য (লোগোতে ৫ বার ক্লিক করলে অ্যাডমিন ওপেন হবে - একটি সিক্রেট ট্রিক!)
-  let clickCount = 0;
-  const secretAdminEntry = () => {
-    clickCount++;
-    if (clickCount === 5) {
-      setCategory('admin');
-      clickCount = 0;
-    }
-  };
-
   return (
     <div className="App">
-      <Navbar category={category} setCategory={setCategory} handleSearch={handleSearch} secretAdminEntry={secretAdminEntry} />
+      <Navbar category={category} setCategory={setCategory} handleSearch={handleSearch} />
+
+      {isLoading && <div className="loading-spinner">Loading...</div>}
 
       {category === 'admin' ? (
         <Admin />
@@ -174,9 +182,8 @@ function App() {
                 <p style={{color:'#aaa'}}>⭐ {selectedMovie.vote_average?.toFixed(1)} | {selectedMovie.release_date || selectedMovie.first_air_date}</p>
                 <p style={{margin:'20px 0', color:'#ddd', lineHeight:'1.6'}}>{selectedMovie.overview}</p>
                 <div className="modal-btns">
-                  <button className="btn-apple btn-fill" onClick={() => getTrailer(selectedMovie.id, selectedMovie.media_type || 'movie')}>▶ Watch Trailer</button>
+                  <button className="btn-apple btn-fill" onClick={() => getTrailer(selectedMovie.id, selectedMovie.title ? 'movie' : 'tv')}>▶ Watch Trailer</button>
                   
-                  {/* যদি Firebase-এ লিঙ্ক থাকে তবে Watch Now বাটন দেখাবে */}
                   {currentStreamLink && (
                     <button className="btn-apple btn-fill" style={{background: '#00d41d', color: '#fff', marginLeft: '10px'}} onClick={() => window.open(currentStreamLink, '_blank')}>
                       ▶ Watch Now
@@ -184,7 +191,7 @@ function App() {
                   )}
 
                   <button className="btn-apple btn-border" onClick={() => toggleWatchlist(selectedMovie)}>
-                    {watchlist.some(m => m.id === selectedMovie.id) ? '✕ Remove List' : '+ Add List'}
+                    {watchlist.some(m => m.id === selectedMovie.id) ? '✕ Remove List' : '+ My List'}
                   </button>
                 </div>
               </div>
