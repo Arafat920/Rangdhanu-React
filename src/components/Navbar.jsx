@@ -1,6 +1,15 @@
 import React from 'react';
 
-function Navbar({ category, setCategory, startVoiceSearch, handleSearch }) {
+function Navbar({ category, setCategory, handleSearch }) {
+  const startVoiceSearch = () => {
+    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    recognition.onresult = (e) => {
+      const query = e.results[0][0].transcript;
+      handleSearch(query);
+    };
+    recognition.start();
+  };
+
   return (
     <header className="glass-nav">
       <div className="nav-content">
